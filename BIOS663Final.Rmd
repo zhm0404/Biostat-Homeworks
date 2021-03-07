@@ -1,0 +1,179 @@
+---
+title: "BIOS663Final"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/zhm/Documents/BIOS663") 
+library(ggplot2)
+library(MASS)
+library(car)
+```
+
+## Q1
+A. 
+
+We perform a linear regression of the heights by setting `treat` and `age` as covariates.   
+We get coefficient estimate of `treat` is 0.95956 with p-value<0.0001, Std 0.09556.  
+$$CI =Estimate \pm qt(.975, df=120-2)\times Std = (0.7703252,1.1487948)$$
+The confidence interval does not include 0. I think the students became taller with treatment.  
+
+B. 
+
+
+```{r Q1B, echo = FALSE, message=FALSE}
+Q1 <- read.csv("final_heights.csv",header = TRUE)
+ggplot(Q1, aes(age, height,col=treat,group=treat)) + 
+  geom_point(alpha=.5) + 
+  stat_smooth(method="lm", aes(fill=treat)) +
+  xlim(12,19)
+ggplot(Q1, aes(treat,age ,col=treat,group=treat)) + 
+  geom_boxplot()
+```
+
+Because Dr. Simple ingored the age's effect on height. He did not account for age.  
+We can see from the plot that age had a positive effect on height. The distributions of age were different in treatment group and control group, which biased the answer.
+
+## Q2
+A.
+
+```{r Q2A, echo = FALSE}
+Q2 <- read.csv("final_college.csv", header = TRUE, row.names = 1)
+fit2 <- lm(Apps ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+plot(fit2$fitted.values,fit2$residuals)
+```
+
+I am concerned because the residuals do not have a Gaussian distribution and do not have the same variance.
+
+B.
+
+```{r Q2B, echo=FALSE}
+Q2 <- read.csv("final_college.csv", header = TRUE, row.names = 1)
+fit2 <- lm(Apps ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+
+bc <- boxcox(fit2)
+best.lam = bc$x[which(bc$y==max(bc$y))]
+fit2bc <- lm((Apps)^best.lam ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+plot(fit2bc$fitted.values,fit2bc$residuals)
+```
+
+The redisual-fitted.value plot looks more like Gaussian distribution now, which justify our choice.
+
+C.
+
+```{r Q2C, echo=FALSE}
+fit2log10 <- lm(log10(Apps) ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+plot(fit2log10$fitted.values,fit2log10$residuals)
+```
+
+It looks better. 
+The new R.squared is higher than both the R.squared in Part A and Part B.
+
+D.
+
+```{r Q2D, echo=FALSE}
+fit2log10 <- lm(log10(Apps) ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+leverage<-lm.influence(fit2log10)$hat
+which(leverage==max(leverage))
+x <- as.matrix(Q2[,c("Top10perc","Outstate","Room.Board","Personal","PhD" ,"S.F.Ratio","perc.alumni","Grad.Rate")])
+(Q2[276,c("Top10perc","Outstate","Room.Board","Personal","PhD" ,"S.F.Ratio","perc.alumni","Grad.Rate")]-apply(x,2,mean))/apply(x,2,sd)
+dfbetas(fit2log10)[276,]
+
+
+```
+Indiana Wesleyan University.  
+S.F.Ratio for this university has the largest effect size. So its predictor is responsible for the very high leverage value.  
+ The largest dfbetas absolute value for this university is -0.6854, which is correspond to the S.F.Ratio.  
+
+## Q3
+A.
+
+```{r Q3A, echo=FALSE, message=FALSE}
+
+Q3 <- Q2
+fit3 <- glm(Private ~ Outstate + Room.Board + S.F.Ratio + perc.alumni, data = Q3, family = "binomial")
+ggplot(Q3, aes(Private, fit3$fitted.values)) + 
+  geom_point(alpha=0.2) 
+```
+
+Yes, it is well estimated from this plot. Because as the fitted values increase, the more 'Yes' we get.
+
+B.
+
+```{r Q3B, echo=FALSE}
+Q3 <- Q2
+fit3 <- glm(Private ~ Outstate + Room.Board + S.F.Ratio + perc.alumni, data = Q3, family = "binomial")
+fit3$coefficients
+
+```
+The multiplicative effect is exp(2.12963)=8.411754.  
+95% CI is `(exp(2.1296-1.96*0.2551),exp(2.1296+1.96*0.2251)`, which is equal to (5.102,13.868).  
+
+C.
+
+Yes, it is able to. Because the means of true values fall within the bins on the estimated proportions.  
+Compared to the previous plot, in the linear regression model, the means of true values do not fall within the bins.   
+Therefore, linear regression is unable to separate the universities using the four covariates into groups with correctly estimated probabilities.
+
+D.
+
+```{r Q3D, echo=FALSE}
+fit4 <- lm(as.numeric(factor(Private))-1 ~ Outstate + Room.Board + S.F.Ratio + perc.alumni, data = Q3)
+par(mfrow=c(1,2))
+plot(Q3$Outstate,fit4$fitted.values)
+plot(Q3$Outstate,fit3$fitted.values)
+```
+
+The linear regression has to take care about the entire data, so the probability increases at the same rate. The probability goes up slowly even if Outstate is very large. But logistic regression does not have this problem. The probability can go up slowly to 1. The increasing rate need not be a constant.
+
+## Appendix Q1
+```{r AppendixQ1, eval=FALSE}
+Q1 <- read.csv("final_heights.csv",header = TRUE)
+fit1 <- lm(height ~ treat + age, data = Q1)
+summary(fit1)
+c(0.95956-0.09556*qt(.975, df=120-2),0.95956+0.09556*qt(.975, df=120-2))
+
+ggplot(Q1, aes(age, height,col=treat,group=treat)) + 
+  geom_point(alpha=.5) + 
+  stat_smooth(method="lm", aes(fill=treat)) +
+  xlim(12,19)
+```
+
+## Appendix Q2
+
+```{r AppendixQ2, eval=FALSE }
+Q2 <- read.csv("final_college.csv", header = TRUE, row.names = 1)
+fit2 <- lm(Apps ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+plot(fit2$fitted.values,fit2$residuals)
+
+bc <- boxcox(fit2)
+best.lam = bc$x[which(bc$y==max(bc$y))]
+fit2bc <- lm((Apps)^best.lam ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+summary(fit2bc)
+plot(fit2bc$fitted.values,fit2bc$residuals)
+
+fit2log10 <- lm(log10(Apps) ~ Top10perc + Outstate + Room.Board + Personal + PhD + S.F.Ratio + perc.alumni + Grad.Rate, data = Q2)
+summary(fit2log10)
+plot(fit2log10$fitted.values,fit2log10$residuals)
+
+leverage<-lm.influence(fit2log10)$hat
+which(leverage==max(leverage))
+x <- as.matrix(Q2[,c("Top10perc","Outstate","Room.Board","Personal","PhD" ,"S.F.Ratio","perc.alumni","Grad.Rate")])
+(Q2[276,c("Top10perc","Outstate","Room.Board","Personal","PhD" ,"S.F.Ratio","perc.alumni","Grad.Rate")]-apply(x,2,mean))/apply(x,2,sd)
+dfbetas(fit2log10)[276,]
+```
+
+## Appendix Q3
+```{r AppendixQ3, eval=FALSE }
+Q3 <- Q2
+fit3 <- glm(Private ~ Outstate + Room.Board + S.F.Ratio + perc.alumni, data = Q3, family = "binomial")
+ggplot(Q3, aes(Private, fit3$fitted.values)) + 
+  geom_point(alpha=0.2) 
+fit3$coefficients
+summary(fit3)
+
+fit4 <- lm(as.numeric(factor(Private))-1 ~ Outstate + Room.Board + S.F.Ratio + perc.alumni, data = Q3)
+plot(Q3$Outstate,fit4$fitted.values)
+plot(Q3$Outstate,fit3$fitted.values)
+```

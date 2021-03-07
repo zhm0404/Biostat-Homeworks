@@ -1,0 +1,251 @@
+---
+title: "BIOS785 Coding Homework"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/Users/zhm/R")
+library(Seurat)
+library(cowplot)
+library(patchwork)
+library(dplyr)
+```
+
+## Q1
+
+```{r input Baron Data}
+dirname <- "/Users/zhm/R/785coding/"
+counts_matrix_filename1 = paste0(dirname, "GSM2230757_human1_umifm_counts.csv.gz")
+counts1 <- read.table(counts_matrix_filename1, sep =",", header = TRUE)
+counts_matrix_filename2 = paste0(dirname, "GSM2230758_human2_umifm_counts.csv.gz")
+counts2 <- read.table(counts_matrix_filename2, sep =",", header = TRUE)
+counts_matrix_filename3 = paste0(dirname, "GSM2230759_human3_umifm_counts.csv.gz")
+counts3 <- read.table(counts_matrix_filename3, sep =",", header = TRUE)
+counts_matrix_filename4 = paste0(dirname, "GSM2230760_human4_umifm_counts.csv.gz")
+counts4 <- read.table(counts_matrix_filename4, sep =",", header = TRUE)
+tcounts1 <- t(counts1)
+tcounts2 <- t(counts2)
+tcounts3 <- t(counts3)
+tcounts4 <- t(counts4)
+tcounts <- cbind(tcounts1,tcounts2,tcounts3,tcounts4)
+counts_Baron <- tcounts[-c(2,3),]
+colnames(counts_Baron) <- counts_Baron[1,]
+counts_Baron_Seurat <- counts_Baron[-1,]
+```
+
+```{r Baron Clustering}
+Baron <- CreateSeuratObject(counts_Baron_Seurat)
+Baron[["percent.mt"]] <- PercentageFeatureSet(Baron,pattern = "^MT-")
+Baron <- subset(Baron, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+# Run the standard workflow for visualization and clustering
+Baron <- NormalizeData(Baron)
+Baron <- FindVariableFeatures(Baron, selection.method = "vst", nfeatures = 2000,verbose = FALSE)
+Baron <- ScaleData(Baron,verbose = FALSE)
+Baron <- RunPCA(Baron, features = VariableFeatures(object = Baron),verbose = FALSE)
+ElbowPlot(Baron)
+
+# t-SNE and Clustering
+Baron <- FindNeighbors(Baron, dims = 1:17)
+Baron <- FindClusters(Baron, resolution = 0.5)
+Baron <- RunTSNE(Baron, dims = 1:17,do.label=T)
+```
+
+```{r Baron clustering by individuals, fig.height=2, fig.width=8}
+# Visualization
+new.cluster.ids0<-c(0:12)
+names(new.cluster.ids0) <- levels(Baron)
+Baron <- RenameIdents(Baron, new.cluster.ids0)
+p1<-DimPlot(Baron, reduction = "tsne",group.by="orig.ident",label=T)
+p2<-DimPlot(Baron, reduction = "tsne")
+plot_grid(p1, p2)
+
+```
+
+
+No, the cells do not cluster by donors.
+```{r Baron clustering by marker genes, fig.height=8, fig.width=8}
+# Visualization
+FeaturePlot(Baron, reduction="tsne",features = c("KRT19", "PRSS1", "GCG", "INS", "PPY", "SST", "GHRL"),label=T)
+new.cluster.ids<-c("Alpha cells","Beta cells","Alpha cells","Beta cells","Acinar cells","Ductal cells",
+                   "Delta cells","Unknown","Beta cells","Gamma/PP cells","Unknown","Unknown","Ductal cells")
+names(new.cluster.ids) <- levels(Baron)
+Baron <- RenameIdents(Baron, new.cluster.ids)
+DimPlot(Baron, reduction = "tsne", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+
+Yes, the cells cluster by discrete cell types in human pancreas.
+
+```{r Baron cell-type-specific gene expression}
+Baron.markers <- FindAllMarkers(Baron, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25,max.cells.per.ident =200)
+top5 <- Baron.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_logFC)
+DoHeatmap(Baron, features = top5$gene,size = 2) + NoLegend()
+```
+
+```{r input Seger Data}
+dirname <- "/Users/zhm/R/785coding/"
+counts_matrix_filename = paste0(dirname, "pancreas_refseq_rpkms_counts_3514sc.txt")
+colname0 <- read.table(counts_matrix_filename, comment.char = "",fill = T , nrows = 1)
+counts <- read.table(counts_matrix_filename, comment.char="", skip = 1, header = F)
+gene_name <- counts[,1]
+gene_name_unique <- gene_name[which(!duplicated(gene_name))]
+counts_unique<-counts[which(!duplicated(gene_name)),]
+colname1<-cbind(colname0,colname0[-c(1:2)])
+
+colnames(counts_unique) <- as.matrix(colname1)
+rownames(counts_unique) <- as.matrix(gene_name_unique)
+
+counts_unique <- counts_unique[,-c(1,2)]
+raw_counts <- counts_unique[,3515:7028]
+
+col_filter <- colnames(raw_counts)
+unhealthy<-grep("T2D",col_filter)
+
+counts_Seger_Seurat <- raw_counts[,-unhealthy]
+```
+
+```{r Seger Clustering}
+Seger <- CreateSeuratObject(counts_Seger_Seurat,names.delim="_",names.field=1)
+#Seger[["percent.mt"]] <- PercentageFeatureSet(Seger,pattern = "^MT-")
+#Seger <- subset(Seger, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+# Run the standard workflow for visualization and clustering
+Seger <- NormalizeData(Seger)
+Seger <- FindVariableFeatures(Seger, selection.method = "vst", nfeatures = 2000,verbose = FALSE)
+Seger <- ScaleData(Seger,verbose = FALSE)
+Seger <- RunPCA(Seger, features = VariableFeatures(object = Seger),verbose = FALSE)
+ElbowPlot(Seger)
+
+# tSNE and clustering
+Seger <- FindNeighbors(Seger, dims = 1:15)
+Seger <- FindClusters(Seger, resolution = 0.5)
+Seger <- RunTSNE(Seger, dims = 1:15,do.label=T)
+```
+
+```{r Seger clustering by individuals, fig.height=2, fig.width=8}
+# Clustering by marker genes
+p3<-DimPlot(Seger, reduction = "tsne",group.by="orig.ident",label=T)
+new.cluster.ids1=c(0:8)
+names(new.cluster.ids1) <- levels(Seger)
+Seger <- RenameIdents(Seger, new.cluster.ids1)
+p4<-DimPlot(Seger, reduction = "tsne",label=T)
+plot_grid(p3, p4)
+```
+
+
+No, the cells do not cluster by individuals.
+
+```{r Seger clustering by marker genes, fig.height=8, fig.width=8}
+# Try to apply marker genes
+FeaturePlot(Seger, reduction="tsne",features = c("KRT19", "PRSS1", "GCG", "INS", "PPY", "SST", "GHRL"),label=T)
+new.cluster.ids2<-c("Alpha/Beta/Gamma/PP/Delta cells","Alpha cells","Alpha cells","Beta cells","Ductal cells",
+                   "Gamma/PP/Delta cells","Acinar cells","Acinar/Beta cells","Unknown")
+names(new.cluster.ids2) <- levels(Seger)
+Seger <- RenameIdents(Seger, new.cluster.ids2)
+DimPlot(Seger, reduction = "tsne", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+
+Yes, the cells cluster by discrete cell types in human pancreas.
+
+```{r Seger cell-type-specific gene expression}
+Seger.markers <- FindAllMarkers(Seger, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25,max.cells.per.ident =200)
+top5 <- Seger.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_logFC)
+DoHeatmap(Seger, features = top5$gene,size = 2) + NoLegend()
+```
+
+## Q2
+
+```{r input Appended data}
+row_name_baron <- rownames(counts_Baron_Seurat)
+row_name_seger <- rownames(counts_Seger_Seurat)
+com_genes <- intersect(row_name_baron, row_name_seger)
+com_baron <- counts_Baron_Seurat[com_genes,]
+com_seger <- counts_Seger_Seurat[com_genes,]
+counts_com <- cbind(com_baron,com_seger)
+```
+
+```{r Appended data clustering}
+Baron_com <- CreateSeuratObject(com_baron)
+Baron_com[["percent.mt"]] <- PercentageFeatureSet(Baron_com,pattern = "^MT-")
+Baron_com <- subset(Baron_com, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+Seger_com <- CreateSeuratObject(com_seger)
+Seger_com[["percent.mt"]] <- PercentageFeatureSet(Seger_com,pattern = "^MT-")
+Seger_com <- subset(Seger_com, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+Baron_com@meta.data[,"protocol"]<-"inDrop"
+Seger_com@meta.data[,"protocol"]<-"smart-seq2"
+Appended<-merge(Baron_com,Seger_com,add.cell.ids=c("inDrop","smart-seq2"),project="protocol")
+
+# Run the standard workflow for visualization and clustering
+Appended <- NormalizeData(Appended)
+Appended <- FindVariableFeatures(Appended, selection.method = "vst", nfeatures = 2000,verbose = FALSE)
+Appended <- ScaleData(Appended,verbose = FALSE)
+Appended <- RunPCA(Appended, features = VariableFeatures(object = Appended),verbose = FALSE)
+ElbowPlot(Appended)
+
+# tSNE and clustering
+Appended <- FindNeighbors(Appended, dims = 1:15)
+Appended <- FindClusters(Appended, resolution = 0.5)
+Appended <- RunTSNE(Appended, dims = 1:15,do.label=T)
+```
+
+```{r Appended data clustering by technologies,  fig.height=2, fig.width=8}
+# visualization
+new.cluster.ids0<-c(0:13)
+names(new.cluster.ids0) <- levels(Appended)
+Appended <- RenameIdents(Appended, new.cluster.ids0)
+p5<-DimPlot(Appended, reduction = "tsne",group.by="protocol",label=T)
+p6<-DimPlot(Appended, reduction = "tsne")
+plot_grid(p5,p6)
+
+```
+
+
+Yes, the cell cluster by protocols.
+
+```{r CCA alignment, fig.height=2, fig.width=8}
+cca <- merge(Baron_com,Seger_com,add.cell.ids=c("inDrop","smart-seq2"),project="protocol")
+cca.list <- SplitObject(cca, split.by = "protocol")
+cca.list <- lapply(X = cca.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000,verbose = FALSE)
+})
+
+##perform integration
+cca.anchors <- FindIntegrationAnchors(object.list = cca.list, dims = 1:20)
+cca.combined <- IntegrateData(anchorset = cca.anchors, dims = 1:20)
+
+# Run the standard workflow for visualization and clustering
+cca.combined <- ScaleData(cca.combined, verbose = FALSE)
+cca.combined <- RunPCA(cca.combined, npcs = 30, verbose = FALSE)
+ElbowPlot(cca.combined)
+# t-SNE and Clustering
+cca.combined <- FindNeighbors(cca.combined, reduction = "pca", dims = 1:15)
+cca.combined <- FindClusters(cca.combined, resolution = 0.5)
+cca.combined <- RunTSNE(cca.combined, reduction = "pca", dims = 1:15)
+# visualization
+p7<-DimPlot(cca.combined,reduction="tsne",group.by="protocol")
+p8<-DimPlot(cca.combined,reduction="tsne",group.by="orig.ident")
+plot_grid(p7, p8)
+```
+
+```{r CCA clustering by genes, fig.height=8, fig.width=8}
+# clustering by marker genes
+FeaturePlot(cca.combined, features = c("KRT19", "PRSS1","GCG", "INS", "PPY", "SST", "GHRL"),label=T)
+new.cluster.ids3<-c("Alpha cells","Alpha cells","Acinar cells","Gamma/PP/Delta cells","Beta cells","Beta cells","Ductal cells",
+                   "Beta cells","Unknown","Unknown","Unknown","Unknown","Alpha cells","Ductal cells")
+names(new.cluster.ids3) <- levels(cca.combined)
+cca.combined <- RenameIdents(cca.combined, new.cluster.ids3)
+DimPlot(cca.combined, reduction = "tsne", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+
+After CCA alignment, we found that the true underlying cell types are recovered.
+

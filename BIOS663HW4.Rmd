@@ -1,0 +1,144 @@
+---
+title: "BIOS663 Homework4"
+output: pdf_document
+---
+
+
+## Q1
+A.
+$$CI = Sample Estimate \pm multiplier \times standard error$$
+$$Width = 2 \times mutiplier \times \sqrt{\sigma^2H}$$
+$$Width\,of\,straight\,line = 2 \times 2.011 \times\sqrt{0.6252^2\times0.0502}=0.563$$
+$$Width\,of\,splines = 2 \times 2.015 \times\sqrt{0.2501^2\times0.1155}=0.343\\$$
+B.
+Because the simple linear model doesn't fit well, the model does not explain much about the y. Thus, the residual standard error is larger for the straight line. The cubic spline fits well, so the residual standard error is smaller, which makes the confidence interval of mean response smaller.
+
+C.
+the prediction interval for a new observation:
+$$Width\,of\,straight\,line = 2 \times 2.011 \times\sqrt{0.6252^2\times(0.0502+1)}=2.5769$$
+$$Width\,of\,splines = 2 \times 2.015 \times\sqrt{0.2501^2\times(0.1155+1)}=1.0645$$
+$$\frac{2.5769}{1.0645}=2.42$$
+Therefore, 2.42 larger is the prediction interval for a new observation with the same x value as the 8th observation for the straight line as compared to the spline fit.
+
+## Q2
+A.
+Bernoulli\quad $x_{ir}$ \quad $e^{\beta_k}$ \quad log odds of $y_i=1$
+
+B.
+```{r Q2B}
+setwd("/Users/zhm/R")
+email<-read.csv(file = 'email.csv', header = TRUE)
+dat <- email
+g <- glm(spam ~ to_multiple + winner + format + re_subj + exclaim_subj + cc + attach + dollar + inherit + password, data = dat, family = "binomial")
+pi <- g$fitted.values
+mean(pi[pi<=0.2])
+mean(pi[0.2<pi&pi<=0.4])
+mean(pi[0.4<pi&pi<=0.6])
+mean(dat$spam[g$fitted.values<=0.2])
+mean(dat$spam[g$fitted.values>0.2&g$fitted.values<=0.4])
+mean(dat$spam[g$fitted.values>0.4&g$fitted.values<=0.6])
+
+```
+For $pi\in[0,0.2]$, the estimated proportion is 5.029%.  
+For $pi\in(0.2,0.4]$, the estimated proportion is 30.003%.  
+For $pi\in(0.4,0.6]$, the estimated proportion is 49.111%.  
+We can see the actual proportion is 4.99%, 29.43%, 55.35% respectively. Therefore we can consider they correspond to the estimates from logistic regression in these groups.  
+C.
+```{r Q2C}
+summary(g)
+```
+The multiplicative effect of an email having the word “winner” in it on the odds of an email being spam is $exp(1.7038)=5.4948$  
+95% confidence interval for the multiplicative effect is $exp(1.7038\pm1.96*0.3254)=(2.904,10.398)$  
+
+## Q3
+```{r Q3}
+setwd("/Users/zhm/R")
+dat2<-read.csv(file = 'chal_study.csv', header = TRUE)
+set.seed(663)
+n <- 10^6 # it’s a really big class
+L <- rbinom(n,1,.50) # 50% of students already have PKCI
+# with PKCI, attendance probability = 50%, otherwise, prob = 75% 
+prob_A <- .75 - .25*L
+A <- rbinom(n,1,prob_A) # realized attendance
+# Y^0 = How you will do if you don’t go to class
+Y0 <- rbinom(n,1,.45 + .4*L)
+# Y^1 = How you will do if you do go to class
+Y1 <- rbinom(n,1,.55 + .4*L)
+# Note, you can’t see both outcomes Y0 and Y1.
+# If A=1, the outcome is Y1, and if A=0, the outcome is Y0
+Y <- A*Y1 + (1-A)*Y0
+```
+A.
+$$
+\begin{split}
+&E[Y^1]-E[Y^0]=P[Y^1=1]-P[Y^0=1]\\  
+=&(P[Y^1=1|L=1]-P[Y^0=1|L=1])P[L=1]+(P[Y^1=1|L=0]-P[Y^0=1|L=0])P[L=0]\\
+=&0.5(0.95-0.85)+0.5(0.55-0.45)\\
+=&0.10
+\end{split}
+$$
+B.
+```{r Q3B}
+mean(dat2$Y[dat2$A==1])-mean(dat2$Y[dat2$A==0])
+```
+Because for group A=0 and group A=1, the proportions of L=0 and L=1 are different, which would affect the
+expectation of Y since L also has an effect on Y.
+
+C.
+```{r Q3C1}
+mean(dat2$Y[dat2$A==1&dat2$L==0])*0.5+mean(dat2$Y[dat2$A==1&dat2$L==1])*0.5
+mean(dat2$Y[dat2$A==0&dat2$L==0])*0.5+mean(dat2$Y[dat2$A==0&dat2$L==1])*0.5
+```
+Standardized mean for $Y^1$ is 0.7497, standardized mean for $Y^0$ is 0.6504.
+```{r Q3C2}
+mean(c(((dat2[dat2$L==0,]$A)*dat2[dat2$L==0,]$Y/0.75),((dat2[dat2$L==1,]$A)*dat2[dat2$L==1,]$Y/0.5)))
+mean(c(((dat2[dat2$L==0,]$A==0)*dat2[dat2$L==0,]$Y/0.25),((dat2[dat2$L==1,]$A==0)*dat2[dat2$L==1,]$Y/0.5)))
+```
+IMP for $Y^1$ is 0.7489, standardized mean for $Y^0$ is 0.6504.  
+$E[Y^1]=P[Y^1=1|L=1]P[L=1]+P[Y^1=1|L=0]P[L=0]=0.5*0.95+0.5*0.55=0.75$  
+$E[Y^0]=P[Y^0=1|L=1]P[L=1]+P[Y^0=1|L=0]P[L=0]=0.5*0.85+0.5*0.45=0.65$  
+Therefore, these are approximately unbiased.  
+
+D.
+```{r Q3D}
+fit1 = lm(Y~A,data=dat2) 
+summary(fit1)$coefficient[,1]
+```
+When someone does not attend class, the probability that he/she can do well is 0.71685.  
+When someone attend class, the probability that he/she can do well is 0.71685-0.00749=0.7094.  
+Because the estimate $\hat\beta$ in this linear model, which is the change of expectation of Y when A increase per unit, should be equal to E[Y|A=1]-E[Y|A=0], so they are the same.  
+
+E.
+```{r Q3E}
+fit2 = lm(Y~A+L,data=dat2)
+summary(fit2)$coefficient[,1]
+```
+When someone does not attend class, does not have PKCI, the probability that he/she can do well is 0.4511.  
+Given that someone has PKCI or does not have PKCI, if he/she change from not attending class to attending class, the probability that he/she can do well would increase 0.0995.  
+Given that someone attend class or does not attend class, if he/she change from not having PKCI to having PKCI, the probability that he/she can do well would increase 0.3980.  
+Comments:  
+Because this linear model controls for L when analyzing the effect of A, so the result makes sense.
+Similarly, we can also consider it controls for A when analyzing the effect of L, so the result makes sense.  
+
+F.
+```{r Q3F1}
+fit3 = glm(A~L,data = dat2,family = "binomial")
+summary(fit3)$coefficient[,1]
+unique(fit3$fitted.values)
+```
+The multiplicative effect of PKCI on the odds of A=1 given L is exp(-1.108084)=0.3302.    
+Two possible fitted value is 0.4989 for individuals with L=1 and 0.7509 for individuals with L=0.  
+
+```{r Q3F2}
+score = numeric(10^6)
+score[dat2$A==1&dat2$L==1] = 0.5 
+score[dat2$A==1&dat2$L==0] = 0.75 
+score[dat2$A==0&dat2$L==1] = 0.5 
+score[dat2$A==0&dat2$L==0] = 0.25
+weight=1/score
+fit4 = lm(Y~A,data=dat2,weights = weight)
+summary(fit4)$coefficient[,1]
+```
+The estimate is 0.098, which is close to 0.1.
+
+
