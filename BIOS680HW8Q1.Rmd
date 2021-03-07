@@ -1,0 +1,35 @@
+
+
+\usepackage{mathrsfs}    
+\begin{align}
+PL(\beta)&=\prod_{i=1}^{l}\frac{exp(\beta S_i)}{\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l)}\\
+logPL(\beta)&=\sum_{i=1}^{l}log\frac{exp(\beta S_i)}{\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l)}\\
+&=\sum_{i=1}^{l}\beta S_i-\sum_{i=1}^llog{\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l)}\\
+
+u(\beta)&=\frac{\partial logPL(\beta)}{\partial \beta}\\
+&=\sum_{i=1}^{l}S_i-\sum_{i=1}^l\frac{\sum_{l\in R_{D_i}(\tau_i)}S_lexp(\beta S_l)}{\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l)}\\
+u(0)&=\sum_{i=1}^{l}S_i-\sum_{i=1}^l\frac{\sum_{l\in R_{D_i}(\tau_i)}S_l}{\sum_{l\in R_{D_i}(\tau_i)}1}\\
+
+i(\beta)&=-\frac{\partial^2logPL(\beta)}{\partial \beta^2}\\
+&=\sum_{i=1}^l\frac{(\sum_{l\in R_{D_i}(\tau_i)}S_l^2exp(\beta S_l))(\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l))-(\sum_{l\in R_{D_i}(\tau_i)}S_lexp(\beta S_l))^2}{\{\sum_{l\in R_{D_i}(\tau_i)}exp(\beta S_l)\}^2}\\
+i(0)&=\sum_{i=1}^l\frac{(\sum_{l\in R_{D_i}(\tau_i)}S_l^2)(\sum_{l\in R_{D_i}(\tau_i)}1)-(\sum_{l\in R_{D_i}(\tau_i)}S_l)^2}{\{\sum_{l\in R_{D_i}(\tau_i)}1\}^2}\\
+\end{align}
+
+
+$Z_i=1$ for group = 1, $Z_i=0$ for group = 2.
+
+\begin{align}
+\frac{u(0)^2}{i(0)}&=\frac
+{(\sum_{i=1}^{l}(S_i-\frac{\sum_{l\in R_{D_i}(\tau_i)}S_l}{\sum_{l\in R_{D_i}(\tau_i)}1}))^2}
+{\sum_{i=1}^l\frac{(\sum_{l\in R_{D_i}(\tau_i)}S_l^2)(\sum_{l\in R_{D_i}(\tau_i)}1)-(\sum_{l\in R_{D_i}(\tau_i)}S_l)^2}{\{\sum_{l\in R_{D_i}(\tau_i)}1\}^2}}\\
+&=\frac
+{(\sum_{i=1}^{l}(d_{1i}-E(d_{1i})))^2}
+{\sum_{i=1}^lE({d_{1i}}^2)-{E(d_{1i})}^2}\\
+&=\frac
+{(\sum_{i=1}^{l}(d_{1i}-\frac{n_{1i}d_i}{n_{1i}+n_{2i}}))^2}
+{\sum_{i=1}^lvar(d_{1i})}\\
+&=\frac
+{(\sum_{i=1}^{l}(d_{1i}-\frac{n_{1i}d_i}{n_{1i}+n_{2i}}))^2}
+{\sum_{i=1}^l\frac{d_in_{1i}n_{2i}(n_i-d_i)}{(n_i-1){n_i}^2}}\\
+\end{align}
+
